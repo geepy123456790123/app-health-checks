@@ -1,0 +1,33 @@
+name: Samewhere production health
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: samewhere-health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Check public production endpoint
+        run: python3 check_health.py
+      - name: Publish daily status or a status change
+        if: always()
+        run: |
+          if [ -z "$(git status --porcelain -- status.json)" ]; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add status.json
+          git commit -m "Record Samewhere health status"
+          git push
